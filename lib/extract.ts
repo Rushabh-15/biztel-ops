@@ -71,17 +71,23 @@ JSON schema to return:
   ]
 }
 
-Field formatting rules (lock to these exactly):
+Field formatting rules (the form has natural variation across pages — handle all cases):
 - date: convert DD/MM/YY → ISO "YYYY-MM-DD". 2-digit year YY → 20YY.
-- shift: Roman numerals "I", "II", or "III" as written on the form.
+       If only DD/MM is written (no year), assume 2026 → "2026-MM-DD" and lower confidence to ≤ 0.7 with a note.
+- shift: NORMALIZE to Roman numerals "I", "II", or "III" in the output.
+        If the cell shows Arabic numerals "1", "2", or "3", convert to "I", "II", "III" (do this silently — full confidence).
 - employee_number: format "BTnnnn" as a string (e.g., "BT4710").
-- operation_code: 6-digit number as a string (e.g., "856430").
-- machine_number: format "MC-nnn" or "MC-nnnn" as a string (e.g., "MC-730").
-- work_order_number: 6-digit number as a string (e.g., "165460").
-- quantity_produced: positive integer.
-- time_taken: positive decimal hours (e.g., 7.5).
+- operation_code: 5-to-6 digit number as a string (e.g., "856430" or "54321").
+- machine_number: alphanumeric code with a "-" separator. Most rows are "MC-nnn" or "MC-nnnn",
+                  but some forms use other prefixes like "ABC-Tnn".
+                  ALWAYS UPPERCASE the prefix and suffix letters in the output (e.g., write "MC-810" not "Mc-810").
+- work_order_number: 5-to-8 digit number as a string (e.g., "165460" or "24686870").
+- quantity_produced: positive integer, OR null. A cell containing only "-", "–", "NA", or blank means null.
+- time_taken: positive decimal hours (e.g., 7.5 or 8).
 
 Handwriting rules:
+- If a cell has a STRUCK-THROUGH value alongside a clear written replacement (the writer corrected a mistake),
+  extract the REPLACEMENT value. Mention the correction in notes and cap confidence at 0.7.
 - If a character is ambiguous (1 vs l, 0 vs O, 6 vs 0, etc.), set confidence ≤ 0.7 and explain in notes.
 - For digits crammed or split with gaps (e.g., "16 54 70"), concatenate to "165470" but note the ambiguity.
 - The S.No column is a row index — do NOT extract it as a field.
@@ -146,9 +152,9 @@ const FIELD_FORMAT_REGEX: Partial<Record<keyof ExtractedRecord, RegExp>> = {
   date: /^\d{4}-\d{2}-\d{2}$/,
   shift: /^(I|II|III)$/,
   employee_number: /^BT\d{4}$/,
-  operation_code: /^\d{6}$/,
-  machine_number: /^MC-?\d{3,4}$/,
-  work_order_number: /^\d{6}$/,
+  operation_code: /^\d{5,6}$/,
+  machine_number: /^[A-Z]{2,3}-[A-Z0-9]{2,5}$/,
+  work_order_number: /^\d{5,8}$/,
 };
 
 /**

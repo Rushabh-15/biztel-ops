@@ -97,21 +97,28 @@ Open http://localhost:3000.
 Import the repo in Vercel, paste the same four env vars under
 **Settings → Environment Variables**, deploy.
 
-## Data model (locked to the Machine Shop Data form)
+## Data model (Machine Shop Data form)
 
 The sample dataset is a printed table with 10 numbered rows for shift logs.
-Field formats are validated client-side and on save:
+Six sample images were provided and the prompt + validation accept the union
+of formats observed across them — i.e., shift can be Roman *or* Arabic, op
+codes 5–6 digits, work orders 5–8 digits, machines `MC-…` *or* `ABC-Tnn`.
+Gemini normalizes the input variations into the canonical forms below:
 
-| Field | Format | Example |
+| Field | Format after extraction | Example |
 |---|---|---|
-| `date` | `YYYY-MM-DD` (source uses `DD/MM/YY`, the prompt expands `YY` → `20YY`) | `2026-04-20` |
-| `shift` | `I` \| `II` \| `III` (Roman numerals) | `II` |
+| `date` | `YYYY-MM-DD` — prompt expands `DD/MM/YY` → `20YY`, fills `DD/MM` (no year) with `2026` | `2026-04-20` |
+| `shift` | `I` \| `II` \| `III` — prompt normalizes Arabic `1`/`2`/`3` to Roman | `II` |
 | `employee_number` | `^BT\d{4}$` | `BT4710` |
-| `operation_code` | `^\d{6}$` | `856430` |
-| `machine_number` | `^MC-\d{3,4}$` | `MC-730` |
-| `work_order_number` | `^\d{6}$` | `165460` |
-| `quantity_produced` | positive int | `25` |
-| `time_taken` | hours, decimal | `4.5` |
+| `operation_code` | `^\d{5,6}$` | `856430`, `54321` |
+| `machine_number` | `^[A-Z]{2,3}-[A-Z0-9]{2,5}$` | `MC-730`, `ABC-T30` |
+| `work_order_number` | `^\d{5,8}$` | `165460`, `24686870` |
+| `quantity_produced` | positive int (cell `-` / `NA` → null) | `25` |
+| `time_taken` | hours, integer or decimal | `4.5`, `8` |
+
+Cells with strike-throughs (writer corrections) are extracted as the
+replacement value with confidence capped at 0.7 and a note explaining the
+correction was applied.
 
 The Gemini prompt drops blank rows and emits its own per-field confidence;
 `lib/extract.ts` then bumps confidence to `0.95` when a regex match is perfect,

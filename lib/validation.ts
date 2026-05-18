@@ -15,11 +15,14 @@ export type ValidationError = {
 
 const SHIFT_VALUES = new Set(["I", "II", "III"]);
 
+// Widened to cover the full BiztelAI sample set (6 images):
+// op codes can be 5–6 digits, work orders 5–8 digits, machine numbers
+// use either MC- or other 2–3 letter prefixes (e.g., ABC-T30).
 const REGEX = {
   employee_number: /^BT\d{4}$/,
-  operation_code: /^\d{6}$/,
-  machine_number: /^MC-?\d{3,4}$/,
-  work_order_number: /^\d{6}$/,
+  operation_code: /^\d{5,6}$/,
+  machine_number: /^[A-Z]{2,3}-[A-Z0-9]{2,5}$/,
+  work_order_number: /^\d{5,8}$/,
 } as const;
 
 const MANDATORY: (keyof RecordRow)[] = [
@@ -81,7 +84,7 @@ export function validate(record: RecordRow): ValidationError[] {
     errs.push({
       field: "operation_code",
       severity: "warning",
-      message: `Operation code should be 6 digits (got "${record.operation_code}")`,
+      message: `Operation code should be 5–6 digits (got "${record.operation_code}")`,
     });
   }
   if (
@@ -91,7 +94,7 @@ export function validate(record: RecordRow): ValidationError[] {
     errs.push({
       field: "machine_number",
       severity: "warning",
-      message: `Machine number should match MC-nnn or MC-nnnn (got "${record.machine_number}")`,
+      message: `Machine number should be a 2–3 letter prefix + "-" + alphanumeric code (got "${record.machine_number}")`,
     });
   }
   if (
@@ -101,7 +104,7 @@ export function validate(record: RecordRow): ValidationError[] {
     errs.push({
       field: "work_order_number",
       severity: "warning",
-      message: `Work order number should be 6 digits (got "${record.work_order_number}")`,
+      message: `Work order number should be 5–8 digits (got "${record.work_order_number}")`,
     });
   }
 
